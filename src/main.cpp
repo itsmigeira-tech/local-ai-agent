@@ -363,7 +363,7 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
                       15, 17, 50, 25, hwnd, NULL, g_hInst, NULL); // font set on layout pass
 
         g_hComboModels = CreateWindowW(L"BUTTON", L"", WS_CHILD | WS_VISIBLE | BS_OWNERDRAW,
-                                       70, 12, 210, 28, hwnd, (HMENU)ID_COMBO_MODELS, g_hInst, NULL);
+                                       70, 12, 150, 28, hwnd, (HMENU)ID_COMBO_MODELS, g_hInst, NULL);
         SetWindowSubclass(g_hComboModels, ModelBtnSubclassProc, kModelBtnSubclass, (DWORD_PTR)ID_COMBO_MODELS);
 
         g_hStatus = CreateWindowW(L"STATIC", L"", WS_CHILD | WS_VISIBLE | SS_RIGHT,
