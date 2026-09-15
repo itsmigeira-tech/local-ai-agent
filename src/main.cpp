@@ -70,6 +70,9 @@ bool g_modelBtnHovered = false;
 bool g_modelBtnPressed = false;
 int g_selectedModelIdx = 0;
 
+// Owner-drawn menu support
+std::vector<std::wstring> g_menuItemTexts;
+
 // GDI+ rounded rectangle helpers
 void DrawRoundedRect(Gdiplus::Graphics& graphics, Gdiplus::Brush& brush, float x, float y, float width, float height, float radius) {
     Gdiplus::GraphicsPath path;
@@ -505,8 +508,55 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
         SetBkColor(hdc, RGB(26, 28, 38));
         return (INT_PTR)g_hBrushControl;
     }
+    case WM_MEASUREITEM: {
+        LPMEASUREITEMSTRUCT pMIS = (LPMEASUREITEMSTRUCT)lParam;
+        if (pMIS->CtlType == ODT_MENU) {
+            pMIS->itemWidth = 150;
+            pMIS->itemHeight = 26;
+            return TRUE;
+        }
+        break;
+    }
     case WM_DRAWITEM: {
         LPDRAWITEMSTRUCT pDIS = (LPDRAWITEMSTRUCT)lParam;
+        if (pDIS->CtlType == ODT_MENU) {
+            HDC hdc = pDIS->hDC;
+            RECT rc = pDIS->rcItem;
+            bool isSelected = (pDIS->itemState & ODS_SELECTED);
+            bool isGrayed = (pDIS->itemState & ODS_DISABLED);
+            bool isChecked = (pDIS->itemState & ODS_CHECKED);
+
+            HBRUSH hBg = CreateSolidBrush(isSelected ? RGB(35, 37, 51) : RGB(26, 28, 38));
+            FillRect(hdc, &rc, hBg);
+            DeleteObject(hBg);
+
+            if (isSelected) {
+                Gdiplus::Graphics graphics(hdc);
+                Gdiplus::Pen borderPen(Gdiplus::Color(255, 99, 102, 241), 1.0f);
+                graphics.DrawRectangle(&borderPen, (float)rc.left, (float)rc.top, (float)(rc.right - rc.left) - 1, (float)(rc.bottom - rc.top) - 1);
+            }
+
+            std::wstring itemText;
+            if (pDIS->itemID < g_menuItemTexts.size()) {
+                itemText = g_menuItemTexts[pDIS->itemID];
+            }
+
+            SetTextColor(hdc, isGrayed ? RGB(100, 100, 105) : RGB(220, 220, 220));
+            SetBkMode(hdc, TRANSPARENT);
+            SelectObject(hdc, g_hFont);
+
+            RECT rcText = rc;
+            rcText.left += 12;
+            if (isChecked) {
+                SetTextColor(hdc, RGB(134, 222, 160));
+                DrawTextW(hdc, L"\u2713", -1, &rcText, DT_LEFT | DT_VCENTER | DT_SINGLELINE);
+                rcText.left += 18;
+            }
+            rcText.right -= 6;
+            DrawTextW(hdc, itemText.c_str(), -1, &rcText, DT_LEFT | DT_VCENTER | DT_SINGLELINE | DT_END_ELLIPSIS);
+
+            return TRUE;
+        }
         if (pDIS->CtlID == ID_BTN_SEND) {
             HDC hdc = pDIS->hDC;
             RECT rc = pDIS->rcItem;
@@ -595,14 +645,17 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
             if (wmEvent == BN_CLICKED) {
                 if (g_models.empty()) RefreshModels();
 
+                g_menuItemTexts.clear();
                 HMENU hMenu = CreatePopupMenu();
                 if (g_models.empty()) {
-                    AppendMenuW(hMenu, MF_STRING | MF_GRAYED, 199, L"No models found (start Ollama / LM Studio)");
+                    g_menuItemTexts.push_back(L"No models found (start Ollama / LM Studio)");
+                    AppendMenuW(hMenu, MF_STRING | MF_GRAYED | MF_OWNERDRAW, 199, (LPCWSTR)(g_menuItemTexts.size() - 1));
                 } else {
                     for (size_t i = 0; i < g_models.size(); ++i) {
-                        UINT flags = MF_STRING;
+                        g_menuItemTexts.push_back(UTF8ToWide(g_models[i].name));
+                        UINT flags = MF_STRING | MF_OWNERDRAW;
                         if ((int)i == g_selectedModelIdx) flags |= MF_CHECKED;
-                        AppendMenuW(hMenu, flags, (UINT_PTR)(MENU_MODEL_BASE + i), UTF8ToWide(g_models[i].name).c_str());
+                        AppendMenuW(hMenu, flags, (UINT_PTR)(MENU_MODEL_BASE + i), (LPCWSTR)(g_menuItemTexts.size() - 1));
                     }
                 }
 
