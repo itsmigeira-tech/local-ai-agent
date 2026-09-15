@@ -1,0 +1,40 @@
+name: build
+
+on:
+  push:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up MSVC
+        uses: ilammy/msvc-dev-cmd@v1
+
+      - name: Configure CMake
+        run: cmake -S . -B build -G "Visual Studio 17 2022" -A x64
+
+      - name: Build Release
+        run: cmake --build build --config Release
+
+      - name: Download WiX 3.14
+        run: |
+          Invoke-WebRequest -Uri "https://github.com/wixtoolset/wix3/releases/download/wix3141rtm/wix314-binaries.zip" -OutFile "$env:TEMP\wix.zip"
+          Expand-Archive "$env:TEMP\wix.zip" tools\wix -Force
+
+      - name: Build MSI
+        run: |
+          .\tools\wix\candle.exe installer.wxs -out build\installer.wixobj
+          .\tools\wix\light.exe build\installer.wixobj -out "dist\Local AI Agent.msi" -ext WixUIExtension.dll -b "${{ github.workspace }}"
+
+      - name: Stage distributables
+        run: |
+          New-Item -ItemType Directory -Force dist | Out-Null
+          Copy-Item build\Release\LocalAIAgent.exe dist\
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: LocalAIAgent
+          path: dist/

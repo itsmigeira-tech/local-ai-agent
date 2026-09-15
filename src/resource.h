@@ -1,0 +1,6 @@
+#ifndef LOCALAI_AGENT_RESOURCE_H
+#define LOCALAI_AGENT_RESOURCE_H
+
+#define IDI_APPICON 101
+
+#endif

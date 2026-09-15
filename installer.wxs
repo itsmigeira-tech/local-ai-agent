@@ -1,0 +1,67 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Wix xmlns="http://schemas.microsoft.com/wix/2006/wi">
+    <Product Id="*"
+             Name="Local AI Agent"
+             Language="1033"
+             Version="1.0.0.0"
+             Manufacturer="LocalAI Inc."
+             UpgradeCode="12345678-abcd-1234-abcd-1234567890ab">
+
+        <Package InstallerVersion="200"
+                 Compressed="yes"
+                 InstallScope="perMachine"
+                 Description="Lightweight AI Agent for locally installed AI models (Ollama / LM Studio)" />
+
+        <MajorUpgrade DowngradeErrorMessage="A newer version of Local AI Agent is already installed." />
+        <MediaTemplate EmbedCab="yes" />
+        <Icon Id="appIcon" SourceFile="assets\app.ico" />
+
+        <Directory Id="TARGETDIR" Name="SourceDir">
+            <Directory Id="ProgramFilesFolder">
+                <Directory Id="INSTALLFOLDER" Name="LocalAIAgent">
+                    <Component Id="MainExecutableComponent" Guid="87654321-dcba-4321-dcba-0987654321fe">
+                        <File Id="LocalAIAgentEXE"
+                              Source="build\Release\LocalAIAgent.exe"
+                              KeyPath="yes" />
+
+                        <Shortcut Id="DesktopShortcut"
+                                  Directory="DesktopFolder"
+                                  Name="Local AI Agent"
+                                  WorkingDirectory="INSTALLFOLDER"
+                                  Advertise="yes" />
+
+                        <Shortcut Id="ApplicationStartMenuShortcut"
+                                  Directory="ProgramMenuDir"
+                                  Name="Local AI Agent"
+                                  WorkingDirectory="INSTALLFOLDER"
+                                  Advertise="yes" />
+                    </Component>
+                </Directory>
+            </Directory>
+
+            <Directory Id="ProgramMenuFolder">
+                <Directory Id="ProgramMenuDir" Name="Local AI Agent">
+                    <Component Id="ProgramMenuDirComponent" Guid="a1b2c3d4-e5f6-4a5b-8c9d-0e1f2a3b4c5d">
+                        <RemoveFolder Id="RemoveProgramMenuDir" Directory="ProgramMenuDir" On="uninstall" />
+                        <RegistryValue Root="HKCU"
+                                       Key="Software\LocalAI Inc.\Local AI Agent"
+                                       Name="installed"
+                                       Type="integer"
+                                       Value="1"
+                                       KeyPath="yes" />
+                    </Component>
+                </Directory>
+            </Directory>
+
+            <Directory Id="DesktopFolder" Name="Desktop" />
+        </Directory>
+
+        <Feature Id="ProductFeature" Title="Local AI Agent Core" Level="1">
+            <ComponentRef Id="MainExecutableComponent" />
+            <ComponentRef Id="ProgramMenuDirComponent" />
+        </Feature>
+
+        <UIRef Id="WixUI_Minimal" />
+        <Property Id="ARPPRODUCTICON" Value="appIcon" />
+    </Product>
+</Wix>

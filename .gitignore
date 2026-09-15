@@ -1,0 +1,19 @@
+# Build output
+build/
+dist/
+*.msi
+*.pdb
+*.ilk
+*.obj
+
+# Local tooling (WiX binaries etc.)
+tools/
+
+# VS / editor noise
+.vs/
+.vscode/
+*.user
+*.suo
+
+# Model caches / local env
+*.log
