@@ -9,6 +9,14 @@ if(MSVC)
     add_definitions(-DUNICODE -D_UNICODE)
 endif()
 
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin")
+if(CMAKE_CONFIGURATION_TYPES)
+    foreach(cfg ${CMAKE_CONFIGURATION_TYPES})
+        string(TOUPPER "${cfg}" cfg_up)
+        set(CMAKE_RUNTIME_OUTPUT_DIRECTORY_${cfg_up} "${CMAKE_BINARY_DIR}/bin")
+    endforeach()
+endif()
+
 add_executable(LocalAIAgent WIN32
     src/main.cpp
     src/ai_client.cpp

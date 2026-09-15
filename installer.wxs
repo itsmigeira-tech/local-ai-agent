@@ -21,7 +21,7 @@
                 <Directory Id="INSTALLFOLDER" Name="LocalAIAgent">
                     <Component Id="MainExecutableComponent" Guid="87654321-dcba-4321-dcba-0987654321fe">
                         <File Id="LocalAIAgentEXE"
-                              Source="build\Release\LocalAIAgent.exe"
+                              Source="build\bin\LocalAIAgent.exe"
                               KeyPath="yes" />
 
                         <Shortcut Id="DesktopShortcut"

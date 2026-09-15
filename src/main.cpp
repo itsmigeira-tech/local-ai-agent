@@ -22,7 +22,6 @@
 #define ID_EDIT_CHAT      103
 #define ID_EDIT_INPUT     104
 #define ID_BTN_SEND       105
-#define ID_COMBO_BACKEND  106
 #define ID_STATUS         107
 
 // Custom Messages for async work
@@ -31,12 +30,10 @@
 
 // Popup menu command bases
 #define MENU_MODEL_BASE   200
-#define MENU_BACKEND_BASE 300
 
 HINSTANCE g_hInst = NULL;
 HWND g_hMainWnd = NULL;
 HWND g_hComboModels = NULL;
-HWND g_hComboBackend = NULL;
 HWND g_hStatus = NULL;
 HWND g_hEditChat = NULL;
 HWND g_hEditInput = NULL;
@@ -53,7 +50,7 @@ AIClient g_aiClient("127.0.0.1");
 std::vector<ModelInfo> g_models;
 std::wstring g_chatHistory = L"System: Welcome to Local AI Agent!\r\n"
                              L"Connects to local AI models you have already installed (Ollama or LM Studio / OpenAI-compatible).\r\n"
-                             L"Pick a backend, choose a model, and start typing.\r\n\r\n";
+                             L"Choose a model and start typing.\r\n\r\n";
 std::mutex g_chatMutex;
 bool g_isGenerating = false;
 bool g_isRefreshing = false;
@@ -71,8 +68,6 @@ bool g_btnHovered = false;
 bool g_btnPressed = false;
 bool g_modelBtnHovered = false;
 bool g_modelBtnPressed = false;
-bool g_backendBtnHovered = false;
-bool g_backendBtnPressed = false;
 int g_selectedModelIdx = 0;
 
 // GDI+ rounded rectangle helpers
@@ -198,15 +193,9 @@ LRESULT CALLBACK DropBtnSubclassProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM
 // Wrappers that wire each dropdown button's hover/pressed flags. The control
 // id is passed through the subclass dwRefData and forwarded to the postback.
 constexpr USHORT kModelBtnSubclass = 3;
-constexpr USHORT kBackendBtnSubclass = 5;
 
 LRESULT CALLBACK ModelBtnSubclassProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam, UINT_PTR uIdSubclass, DWORD_PTR dwRefData) {
     return DropBtnSubclassProc<&g_modelBtnHovered, &g_modelBtnPressed>(
-        hwnd, uMsg, wParam, lParam, uIdSubclass, dwRefData);
-}
-
-LRESULT CALLBACK BackendBtnSubclassProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam, UINT_PTR uIdSubclass, DWORD_PTR dwRefData) {
-    return DropBtnSubclassProc<&g_backendBtnHovered, &g_backendBtnPressed>(
         hwnd, uMsg, wParam, lParam, uIdSubclass, dwRefData);
 }
 
@@ -377,15 +366,8 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
                                        70, 12, 210, 28, hwnd, (HMENU)ID_COMBO_MODELS, g_hInst, NULL);
         SetWindowSubclass(g_hComboModels, ModelBtnSubclassProc, kModelBtnSubclass, (DWORD_PTR)ID_COMBO_MODELS);
 
-        CreateWindowW(L"STATIC", L"Backend:", WS_CHILD | WS_VISIBLE | SS_LEFT,
-                      290, 17, 60, 25, hwnd, NULL, g_hInst, NULL);
-
-        g_hComboBackend = CreateWindowW(L"BUTTON", L"", WS_CHILD | WS_VISIBLE | BS_OWNERDRAW,
-                                        352, 12, 150, 28, hwnd, (HMENU)ID_COMBO_BACKEND, g_hInst, NULL);
-        SetWindowSubclass(g_hComboBackend, BackendBtnSubclassProc, kBackendBtnSubclass, (DWORD_PTR)ID_COMBO_BACKEND);
-
         g_hStatus = CreateWindowW(L"STATIC", L"", WS_CHILD | WS_VISIBLE | SS_RIGHT,
-                                  512, 17, 240, 25, hwnd, (HMENU)ID_STATUS, g_hInst, NULL);
+                                  290, 17, 460, 25, hwnd, (HMENU)ID_STATUS, g_hInst, NULL);
 
         g_hEditChat = CreateWindowW(L"EDIT", L"", WS_CHILD | WS_VISIBLE | WS_VSCROLL | ES_MULTILINE | ES_AUTOVSCROLL | ES_READONLY,
                                     25, 65, 740, 410, hwnd, (HMENU)ID_EDIT_CHAT, g_hInst, NULL);
@@ -416,7 +398,7 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
         int cy = HIWORD(lParam);
         if (cx > 50 && cy > 100) {
             // Top bar: fixed pickers, right-aligned status
-            if (g_hStatus) MoveWindow(g_hStatus, 512, 17, (cx > 540) ? cx - 524 : 240, 25, TRUE);
+            if (g_hStatus) MoveWindow(g_hStatus, 290, 17, (cx > 310) ? cx - 302 : 460, 25, TRUE);
 
             MoveWindow(g_hEditChat, 25, 65, cx - 50, cy - 140, TRUE);
             MoveWindow(g_hEditInput, 25, cy - 46, cx - 185, 25, TRUE);
@@ -558,12 +540,9 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
             SelectObject(hdc, g_hFont);
             DrawTextW(hdc, L"\u27A4", -1, &rc, DT_CENTER | DT_VCENTER | DT_SINGLELINE);
             return TRUE;
-        } else if (pDIS->CtlID == ID_COMBO_MODELS || pDIS->CtlID == ID_COMBO_BACKEND) {
+        } else if (pDIS->CtlID == ID_COMBO_MODELS) {
             HDC hdc = pDIS->hDC;
             RECT rc = pDIS->rcItem;
-            bool isBackend = (pDIS->CtlID == ID_COMBO_BACKEND);
-            bool hovered = isBackend ? g_backendBtnHovered : g_modelBtnHovered;
-            bool pressed = isBackend ? g_backendBtnPressed : g_modelBtnPressed;
 
             HBRUSH hBg = CreateSolidBrush(RGB(13, 14, 18));
             FillRect(hdc, &rc, hBg);
@@ -573,8 +552,8 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
             graphics.SetSmoothingMode(Gdiplus::SmoothingModeAntiAlias);
 
             Gdiplus::Color btnBgColor;
-            if (pressed) btnBgColor = Gdiplus::Color(255, 40, 43, 61);
-            else if (hovered) btnBgColor = Gdiplus::Color(255, 35, 37, 51);
+            if (g_modelBtnPressed) btnBgColor = Gdiplus::Color(255, 40, 43, 61);
+            else if (g_modelBtnHovered) btnBgColor = Gdiplus::Color(255, 35, 37, 51);
             else btnBgColor = Gdiplus::Color(255, 26, 28, 38);
 
             Gdiplus::SolidBrush brush(btnBgColor);
@@ -583,25 +562,11 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
             Gdiplus::Pen borderPen(Gdiplus::Color(255, 40, 43, 61), 1.0f);
             DrawRoundedRectBorder(graphics, borderPen, (float)rc.left, (float)rc.top, (float)(rc.right - rc.left), (float)(rc.bottom - rc.top), 6.0f);
 
-            // Connected highlight for backend button
-            if (isBackend && g_activeBackend != 0) {
-                Gdiplus::Pen okPen(Gdiplus::Color(255, 70, 150, 110), 1.0f);
-                DrawRoundedRectBorder(graphics, okPen, (float)rc.left, (float)rc.top, (float)(rc.right - rc.left), (float)(rc.bottom - rc.top), 6.0f);
-            }
-
             std::wstring display;
-            if (isBackend) {
-                switch (g_backendKind) {
-                    case BK_OLLAMA: display = L"Ollama"; break;
-                    case BK_OPENAI: display = L"LM Studio / OpenAI"; break;
-                    default: display = L"Auto Detect"; break;
-                }
-            } else {
-                if (g_models.empty()) {
-                    display = g_isRefreshing ? L"Loading Models..." : L"No Models Found";
-                } else if (g_selectedModelIdx >= 0 && g_selectedModelIdx < (int)g_models.size()) {
-                    display = UTF8ToWide(g_models[g_selectedModelIdx].name);
-                }
+            if (g_models.empty()) {
+                display = g_isRefreshing ? L"Loading Models..." : L"No Models Found";
+            } else if (g_selectedModelIdx >= 0 && g_selectedModelIdx < (int)g_models.size()) {
+                display = UTF8ToWide(g_models[g_selectedModelIdx].name);
             }
 
             SetTextColor(hdc, RGB(220, 220, 220));
@@ -657,42 +622,11 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
                 }
                 InvalidateRect(g_hComboModels, NULL, TRUE);
             }
-        } else if (wmId == ID_COMBO_BACKEND) {
-            if (wmEvent == BN_CLICKED) {
-                HMENU hMenu = CreatePopupMenu();
-                const wchar_t* items[] = { L"Auto Detect", L"Ollama", L"LM Studio / OpenAI-compatible" };
-                for (int i = 0; i < 3; ++i) {
-                    UINT flags = MF_STRING;
-                    if (i == g_backendKind) flags |= MF_CHECKED;
-                    AppendMenuW(hMenu, flags, MENU_BACKEND_BASE + i, items[i]);
-                }
-
-                RECT rect;
-                GetWindowRect(g_hComboBackend, &rect);
-                int selection = TrackPopupMenu(hMenu, TPM_LEFTALIGN | TPM_TOPALIGN | TPM_RETURNCMD | TPM_NONOTIFY,
-                                                rect.left, rect.bottom, 0, hwnd, NULL);
-                DestroyMenu(hMenu);
-
-                if (selection >= MENU_BACKEND_BASE && selection <= MENU_BACKEND_BASE + 2 && selection - MENU_BACKEND_BASE != g_backendKind) {
-                    g_backendKind = selection - MENU_BACKEND_BASE;
-                    {
-                        std::lock_guard<std::mutex> lock(g_chatMutex);
-                        g_models.clear();
-                        g_activeBackend = 0;
-                        g_activePort = 0;
-                    }
-                    g_selectedModelIdx = 0;
-                    InvalidateRect(g_hComboBackend, NULL, TRUE);
-                    InvalidateRect(g_hComboModels, NULL, TRUE);
-                    RefreshModels();
-                }
-            }
         }
         break;
     }
     case WM_BACKEND_STATUS: {
         if (g_hStatus) SetWindowTextW(g_hStatus, g_statusText.c_str());
-        InvalidateRect(g_hComboBackend, NULL, TRUE);
         InvalidateRect(g_hComboModels, NULL, TRUE);
         InvalidateRect(hwnd, NULL, FALSE);
         break;
